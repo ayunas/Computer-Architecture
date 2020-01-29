@@ -16,27 +16,32 @@ class CPU:
 
     def load(self):
         """Load a program into memory."""
-        print(sys.argv[1])
+        if len(sys.argv) != 2:
+            print(f"Usage: {sys.argv[0]} filename not specified", file=sys.stderr)
+            # raise FileNotFoundError
+            sys.exit(1)
         try:
+            filename = sys.argv[1]
+            print('filename', filename)
             address = 0
-            file = open(sys.argv[1], 'r')
-            # program = file.readlines()
-            instructions = []
-            for line in file:
-                break_up = line.split('#')
-                ins = break_up[0].strip()
-                # ins = int(ins,2)
-                # ins = format(ins,"08b")
-                if ins == '':
-                    continue
-                self.ram[address] = int(ins,2)
-                address += 1 
-                # instructions.append(int(ins,2))
-            
-            print(self.ram)
-            
-        finally:
-            file.close()
+            file = open(filename, 'r')
+        except IOError:
+            print('Could not open/read file', filename)
+            sys.exit()
+
+        instructions = []
+        for line in file:
+            break_up = line.split('#')
+            ins = break_up[0].strip()
+            # ins = int(ins,2)
+            # ins = format(ins,"08b")
+            if ins == '':
+                continue
+            self.ram[address] = int(ins,2)
+            address += 1 
+        print(self.ram)
+        
+        file.close()
 
 
         # for instruction in program:
@@ -91,7 +96,10 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        self.load()
+        try:
+            self.load()
+        except FileNotFoundError:
+            return
         # try:
         #     self.load()
         #     self.halted = False
@@ -122,8 +130,6 @@ class CPU:
             
             else:
                 print(f"Error occured at register index: {self.pc}")
-
-            
 
 c = CPU()
 c.run()
