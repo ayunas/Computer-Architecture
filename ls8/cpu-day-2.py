@@ -1,6 +1,7 @@
 """CPU functionality."""
 
 import sys
+from branch import Branch
 
 class CPU:
     """Main CPU class."""
@@ -94,6 +95,19 @@ class CPU:
             print(" %02X" % self.reg[i], end='')
 
         print()
+    
+    ####using a branch_table and LDI is loading into ram, but how to do so for all LDI values in O(1)???#######################
+    # def run(self):
+    #     try:
+    #         self.load()
+    #         self.halted = False
+    #     except FileNotFoundError:
+    #         sys.exit()
+        
+    #     branch_table = Branch()
+    #     branch_table.run(self.ram,self.pc,self.register)
+    #     print(self.register)
+    ############################################################################################################################
 
     def run(self):
         """Run the CPU."""
