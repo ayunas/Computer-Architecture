@@ -9,8 +9,10 @@ class CPU:
     def __init__(self):
         """Construct a new CPU."""
         self.ram = [0]*len(program)
-        self.registers = [0]*8 #r0,r1,r2,r3,r4,r5,r6,r7
+        self.register = [0]*8 #r0,r1,r2,r3,r4,r5,r6,r7
         self.pc = 0  #index of the pointer for the ram
+        self.MAR = None  #Memory Address Register - holds memory address to read or write from
+        self.MDR = None #Memory Data Register - holds memory address of value that has been read.  
         self.halted = True
 
     def load(self,program):
@@ -22,13 +24,22 @@ class CPU:
             address += 1
 
     def ram_read(self):
-        r_index = self.ram[self.pc + 1]
-        print(self.registers[r_index])
+        #MAR = Memory Address Register.  the address containing the data to be read from the register
+        MAR = self.ram[self.pc + 1]
+        print(self.register[MAR])
 
-    def ram_write(self):
-        r_index = self.ram[self.pc + 1]
-        r_val = self.ram[self.pc + 2]
-        self.registers[r_index] = r_val
+    # def ram_write(self):
+    #     #MDR = Memory Data Register. the data sent 
+    #     MAR = self.ram[self.pc + 1]
+    #     MDR = self.ram[self.pc + 2]
+    #     self.register[MAR] = MDR
+
+    def reg_read(self):
+        print(self.register[self.MAR])
+    
+    def reg_write(self):
+        self.register[self.MAR] = self.MDR
+        return self.register[self.MAR]
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
@@ -75,11 +86,13 @@ class CPU:
             instruction = self.ram[self.pc]
 
             if instruction == LDI:  #LOAD IMMEDIATE
-                self.ram_write()
+                self.MAR = self.ram[self.pc + 1] #set the register address as MAR
+                self.MDR = self.ram[self.pc + 2] #set the data at the register address as MDR
+                self.reg_write()
                 self.pc += 3
             
             elif instruction == PRN:  #PRINT
-                self.ram_read()
+                self.reg_read()
                 self.pc += 2
             
             elif instruction == HLT:
