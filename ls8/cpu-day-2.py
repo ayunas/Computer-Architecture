@@ -13,6 +13,7 @@ class CPU:
         self.MAR = None  #Memory Address Register - holds memory address to read or write from
         self.MDR = None #Memory Data Register - holds memory address of value that has been read.  
         self.halted = True
+        self.dispatch = {'LDI' : 130, 'MUL': 162, 'PRN': 71, 'HLT': 1}
 
     def load(self):
         """Load a program into memory."""
@@ -22,7 +23,7 @@ class CPU:
             sys.exit(1)
         try:
             filename = sys.argv[1]
-            print('filename', filename)
+            print('filename: ', filename)
             address = 0
             file = open(filename, 'r')
         except IOError:
@@ -39,19 +40,12 @@ class CPU:
                 continue
             self.ram[address] = int(ins,2)
             address += 1 
-        print(self.ram)
-        
         file.close()
 
-
-        # for instruction in program:
-        #     self.ram[address] = instruction
-        #     address += 1
-
-    def ram_read(self):
-        #MAR = Memory Address Register.  the address containing the data to be read from the register
-        MAR = self.ram[self.pc + 1]
-        print(self.register[MAR])
+    # def ram_read(self):
+    #     #MAR = Memory Address Register.  the address containing the data to be read from the register
+    #     MAR = self.ram[self.pc + 1]
+    #     print(self.register[MAR])
 
     # def ram_write(self):
     #     #MDR = Memory Data Register. the data sent 
@@ -59,18 +53,25 @@ class CPU:
     #     MDR = self.ram[self.pc + 2]
     #     self.register[MAR] = MDR
 
-    def reg_read(self):
+    def reg_read(self,address):
+        self.MAR = address
         print(self.register[self.MAR])
+        self.MAR = None
     
-    def reg_write(self):
+    def reg_write(self,address,data):
+        self.MAR = address
+        self.MDR = data
         self.register[self.MAR] = self.MDR
-        return self.register[self.MAR]
+        self.MAR = None
+        self.MDR = None
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
         if op == "ADD":
-            self.reg[reg_a] += self.reg[reg_b]
-        #elif op == "SUB": etc
+            self.register[reg_a] += self.register[reg_b]
+        # elif op == "SUB": etc
+        elif op == "MUL":
+            self.register[reg_a] *= self.register[reg_b] 
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -98,38 +99,37 @@ class CPU:
         """Run the CPU."""
         try:
             self.load()
+            self.halted = False
         except FileNotFoundError:
-            return
-        # try:
-        #     self.load()
-        #     self.halted = False
-        #     print('RAM loaded successfully...')
-        #     data = [bin(entry) for entry in self.ram]
-        #     print(data)
-
-        # except Exception:
-        #     print('there has been an error loading the program')
-        #     return
+            sys.exit()
         
         while self.halted is False:
             instruction = self.ram[self.pc]
 
-            if instruction == LDI:  #LOAD IMMEDIATE
-                self.MAR = self.ram[self.pc + 1] #set the register address as MAR
-                self.MDR = self.ram[self.pc + 2] #set the data at the register address as MDR
-                self.reg_write()
+            if instruction == self.dispatch['LDI']:  #LOAD IMMEDIATE
+                address = self.ram[self.pc + 1] #set the register address as MAR
+                data = self.ram[self.pc + 2] #set the data at the register address as MDR
+                self.reg_write(address,data)
                 self.pc += 3
             
-            elif instruction == PRN:  #PRINT
-                self.reg_read()
+            elif instruction == self.dispatch['MUL']:
+                reg_a = self.ram[self.pc + 1]
+                reg_b = self.ram[self.pc + 2]
+                self.alu('MUL',reg_a,reg_b)
+                self.pc += 3
+
+            elif instruction == self.dispatch['PRN']:  #PRINT
+                address = self.ram[self.pc + 1]
+                self.reg_read(address)
                 self.pc += 2
             
-            elif instruction == HLT:
+            elif instruction == self.dispatch['HLT']:
                 self.pc += 1
                 self.halted = True
             
             else:
                 print(f"Error occured at register index: {self.pc}")
+                sys.exit()
 
 c = CPU()
 c.run()
