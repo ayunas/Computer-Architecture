@@ -32,3 +32,6 @@ class Branch:
         self.data[ir](ram,pc,register)
 
 
+
+
+
