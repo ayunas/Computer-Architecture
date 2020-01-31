@@ -3,9 +3,10 @@
 The idea is to create a virtual stack inside of the RAM. and reference it with the SP or stack pointer.  The stack starts at the back of the RAM, and every value is pushed on top of it, or from back to front.  that is why the sp is decremented by 1 after pushing.
 and when poping from the stack, first you increment the SP to point it to the top of the stack.  then you 0 out the stack at ram[sp], and set it to the register address that was passed in to the pop() method.
 '''
+
 import sys
 from branch import Branch
-from stack import Stack
+# from stack import Stack
 
 class CPU:
     """Main CPU class."""
@@ -14,13 +15,12 @@ class CPU:
         """Construct a new CPU."""
         self.ram = [0]*(2**8)
         self.register = [0]*8 #r0,r1,r2,r3,r4,r5,r6,r7
-        self.pc = 0  #index of the pointer for the ram
+        self.PC = 0  #index of the pointer for the ram
         self.MAR = None  #Memory Address Register - holds memory address to read or write from
         self.MDR = None #Memory Data Register - holds memory address of value that has been read.  
         self.halted = True
-        self.dispatch = {'LDI' : 130, 'MUL': 162, 'PRN': 71,'PUSH': 69, 'POP': 70, 'HLT': 1}
-        self.stack = Stack()
-        self.SP = self.stack.sp
+        self.dispatch = {'LDI' : 130, 'MUL': 162, 'PRN': 71,'PUSH': 69, 'POP': 70, 'CALL':80, 'HLT': 1, 'MULT2PRINT':160, 'RET':17}
+        self.SP = -1
 
     def load(self):
         """Load a program into memory."""
@@ -49,17 +49,6 @@ class CPU:
             address += 1 
         file.close()
 
-    # def ram_read(self):
-    #     #MAR = Memory Address Register.  the address containing the data to be read from the register
-    #     MAR = self.ram[self.pc + 1]
-    #     print(self.register[MAR])
-
-    # def ram_write(self):
-    #     #MDR = Memory Data Register. the data sent 
-    #     MAR = self.ram[self.pc + 1]
-    #     MDR = self.ram[self.pc + 2]
-    #     self.register[MAR] = MDR
-
     def prn(self,address):
         self.MAR = address
         print(self.register[self.MAR])
@@ -85,20 +74,22 @@ class CPU:
     
     def push(self,r_address):
         # Push the value in the given register on the stack.
-        # print('before pushing to stack', self.stack)
-        val = self.register[r_address]
-        self.stack.push(val)
-        print('after pushing to stack', self.stack)
-        print('SP', self.stack.sp)
+        print('r_address in push', r_address)
+        self.MDR = self.register[r_address]
+        self.ram[self.SP] = self.MDR
+        self.SP -= 1
+        self.MDR = None
+        print('ram after pushing', self.ram)
     
     def pop(self,r_address):
         #Pop the value at the top of the stack into the given register.
-        # print('before popping from stack', self.stack)
-        popped = self.stack.pop()
+        self.SP += 1
+        popped = self.ram[self.SP]
+        self.ram[self.SP] = 0
         self.register[r_address] = popped
-        # print('after popping from stack', self.stack)
+        print('popped', popped)
         print(f"popped into register[{r_address}]: ", self.register[r_address])
-        print('SP', self.stack.sp)
+        print('ram after popping', self.ram)
 
     def trace(self):
         """
@@ -107,16 +98,18 @@ class CPU:
         """
 
         print(f"TRACE: %02X | %02X %02X %02X |" % (
-            self.pc,
+            self.PC,
             #self.fl,
             #self.ie,
-            self.ram_read(self.pc),
-            self.ram_read(self.pc + 1),
-            self.ram_read(self.pc + 2)
+            self.ram_read(self.PC),
+            self.ram_read(self.PC + 1),
+            self.ram_read(self.PC + 2)
         ), end='')
 
         for i in range(8):
             print(" %02X" % self.reg[i], end='')
+
+        print()
     
     ####using a branch_table and LDI is loading into ram, but how to do so for all LDI values in O(1)???#######################
     # def run(self):
@@ -127,7 +120,7 @@ class CPU:
     #         sys.exit()
         
     #     branch_table = Branch()
-    #     branch_table.run(self.ram,self.pc,self.register)
+    #     branch_table.run(self.ram,self.PC,self.register)
     #     print(self.register)
     ############################################################################################################################
 
@@ -140,43 +133,77 @@ class CPU:
             sys.exit()
         
         while self.halted is False:
-            instruction = self.ram[self.pc]
+            instruction = self.ram[self.PC]
+            # print('instruction at beginning of while loop', 'PC:', self.PC, instruction)
 
             if instruction == self.dispatch['LDI']:  #LOAD IMMEDIATE
-                address = self.ram[self.pc + 1] #set the register address as MAR
-                data = self.ram[self.pc + 2] #set the data at the register address as MDR
+                # print('at the LDI instruction')
+                address = self.ram[self.PC + 1] #set the register address as MAR
+                data = self.ram[self.PC + 2] #set the data at the register address as MDR
                 self.ldi(address,data)
-                self.pc += 3
+                self.PC += 3
             
             elif instruction == self.dispatch['MUL']:
-                reg_a = self.ram[self.pc + 1]
-                reg_b = self.ram[self.pc + 2]
+                reg_a = self.ram[self.PC + 1]
+                reg_b = self.ram[self.PC + 2]
                 self.alu('MUL',reg_a,reg_b)
-                self.pc += 3
+                self.PC += 3
             
             elif instruction == self.dispatch['PUSH']:
-                r_address = self.ram[self.pc + 1]
+                r_address = self.ram[self.PC + 1]
                 self.push(r_address)
-                self.pc += 2
+                self.PC += 2
 
             elif instruction == self.dispatch['POP']:
                 # print('pop', instruction)
-                r_address = self.ram[self.pc + 1]
+                r_address = self.ram[self.PC + 1]
                 # print('r address', r_address)
                 self.pop(r_address)
-                self.pc += 2
+                self.PC += 2
 
             elif instruction == self.dispatch['PRN']:  #PRINT
-                address = self.ram[self.pc + 1]
+                address = self.ram[self.PC + 1]
                 self.prn(address)
-                self.pc += 2
+                self.PC += 2
+                # print('self.PC after print', self.PC)
             
             elif instruction == self.dispatch['HLT']:
-                self.pc += 1
+                self.PC += 1
                 self.halted = True
-            
+
+            elif instruction == self.dispatch['CALL']:
+                # print('at the call instruction')
+                # subroutine_address = self.ram[self.PC + 1]
+                # self.push(self.ram[self.PC + 2]) #push next instruction to stack
+                ####################################################
+                next_instruction_pc = self.PC + 2
+                
+                # print('next_instruction', next_instruction_pc)
+                # self.ram[self.SP] = next_instruction
+                self.ram[self.SP] = next_instruction_pc
+                self.SP -= 1
+                ####################################################
+                r_address = self.ram[self.PC + 1] #register containing the subroutine
+                subroutine_address = self.register[r_address]
+                self.PC = subroutine_address
+                # print('subroutine: ', self.ram[self.PC])
+                # self.PC += 2
+            elif instruction == self.dispatch['MULT2PRINT']:
+                # print('subroutine instruction reached')
+                r_1 = self.ram[self.PC + 1]
+                r_2 = self.ram[self.PC + 2]
+                print(r_1,r_2)
+                self.alu('ADD',r_1,r_2)
+                self.PC += 3
+            elif instruction == self.dispatch['RET']:
+                # print('return instruction reached', self.PC)
+                self.SP += 1
+                popped_instruction_pc = self.ram[self.SP]
+                self.ram[self.SP] = 0
+                # print('popped_instruction', popped_instruction_pc)
+                self.PC = popped_instruction_pc
             else:
-                print(f"Error occured at register index: {self.pc}")
+                print(f"Unknown instruction at index: {self.PC}")
                 sys.exit()
 
 c = CPU()
